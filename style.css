@@ -1,0 +1,90 @@
+body {
+    font-family: sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background-color: white;
+    padding: 20px 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 600px;
+    text-align: center;
+}
+
+h1 {
+    color: #1a73e8;
+}
+
+.controls {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+button, input[type="file"] {
+    font-size: 16px;
+    padding: 10px 15px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+}
+
+button {
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+}
+
+button:hover {
+    background-color: #1558b8;
+}
+
+#status {
+    font-size: 18px;
+    color: #555;
+    font-weight: bold;
+    min-height: 25px;
+}
+
+.result-box {
+    text-align: left;
+    margin-top: 20px;
+}
+
+textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box; /* paddingを含めて幅100%にする */
+}
+/* 一番下に追加 */
+.download-area {
+    margin-top: 25px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+#downloadAudioButton, #downloadTextButton {
+    background-color: #008080; /* 少し違う色にする */
+    display: none; /* 最初は非表示にしておく */
+}
+
+#downloadAudioButton:hover, #downloadTextButton:hover {
+    background-color: #006666;
+}
+.recording {
+    background-color: #ff4136; /* 赤色 */
+    color: white;
+}

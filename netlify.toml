@@ -1,0 +1,3 @@
+[build]
+  # この設定が、Netlifyに関数フォルダの場所を教えます。
+  functions = "netlify/functions"

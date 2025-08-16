@@ -1,7 +1,7 @@
 // ファイルパス: netlify/functions/transcribe.js
 
 // Hugging FaceのAPIエンドポイントURL
-const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-base";
+const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3";
 
 // Netlifyが実行するメインの関数
 export const handler = async (event) => {

@@ -1,39 +1,58 @@
 // ファイルパス: netlify/functions/transcribe.js
 
-// 最新のimport構文を使います
-import { HfInference } from "@huggingface/inference";
-
-// Hugging Face Inferenceクライアントを初期化
-// Netlifyの環境変数からAPIキーを自動で読み込みます
-const hf = new HfInference(process.env.HUGGINGFACE_TOKEN);
+// Hugging FaceのAPIエンドポイントURL
+const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3";
 
 // Netlifyが実行するメインの関数
 export const handler = async (event) => {
-    // POSTリクエストのみを受け付ける
+    // POSTリクエスト以外は受け付けない
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        // ブラウザから送信された音声データはevent.bodyに入っている
-        // NetlifyによってBase64エンコードされているため、Bufferに変換する
-        const audioBuffer = Buffer.from(event.body, 'base64');
+        // Netlifyの環境変数からAPIキーを安全に読み込む
+        const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
+        if (!HUGGINGFACE_TOKEN) {
+            throw new Error("Hugging Face API token not configured.");
+        }
 
-        // Whisperモデルを使って文字起こしAPIを呼び出す
-        const response = await hf.automaticSpeechRecognition({
-            model: 'openai/whisper-large-v3', // より高速な small や base モデルも選択肢
-            data: audioBuffer,
+        // ブラウザから送られてきたContent-Typeヘッダーを取得する【重要】
+        const contentType = event.headers['content-type'];
+        if (!contentType || !contentType.startsWith('audio/')) {
+            throw new Error("Valid audio Content-Type header is required.");
+        }
+
+        // 音声データをBufferに変換
+        const audioBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
+        
+        // Hugging Face APIに直接fetchでリクエストを送信する
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                // 認証情報と、ブラウザから受け取ったContent-Typeをそのまま設定する【重要】
+                'Authorization': `Bearer ${HUGGINGFACE_TOKEN}`,
+                'Content-Type': contentType,
+            },
+            body: audioBuffer,
         });
 
-        // 文字起こし結果を成功レスポンスとして返す
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Hugging Face API Error:", errorBody);
+            throw new Error(`Hugging Face API responded with status ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // 成功レスポンスを返す
         return {
             statusCode: 200,
-            body: JSON.stringify(response),
+            body: JSON.stringify(result),
         };
 
     } catch (error) {
         console.error("Netlify Function内でエラー:", error);
-        // エラーメッセージをブラウザに返す
         return {
             statusCode: 500,
             body: JSON.stringify({ error: error.message }),

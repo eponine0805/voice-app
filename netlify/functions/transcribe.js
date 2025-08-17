@@ -1,50 +1,33 @@
 // ファイルパス: netlify/functions/transcribe.js
 
-const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-base";
+import { HfInference } from "@huggingface/inference";
+
+const hf = new HfInference(process.env.HUGGINGFACE_TOKEN);
 
 export const handler = async (event) => {
-    // POSTリクエスト以外は受け付けない
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        // APIキーを読み込む
-        const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
-        if (!HUGGINGFACE_TOKEN) {
-            throw new Error("Hugging Face API token is not configured.");
-        }
-
-        // リクエストボディが存在しない場合はエラー
         if (!event.body) {
             throw new Error("Request body is missing.");
         }
 
-        // 音声データをBufferに変換
         const audioBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
-        
-        // Hugging Face APIに直接fetchでリクエストを送信する
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${HUGGINGFACE_TOKEN}`,
-                // Content-TypeはAPI側で自動判別させるため、ここでは設定しない
-            },
-            body: audioBuffer,
+
+        // BufferをBlobに変換
+        const audioBlob = new Blob([audioBuffer]);
+
+        // Hugging Faceライブラリを使って文字起こしを実行
+        const response = await hf.automaticSpeechRecognition({
+            model: 'openai/whisper-base', // 安定性と速度のため'base'モデルを使用
+            data: audioBlob,
         });
 
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("Hugging Face API Error:", errorBody);
-            throw new Error(`Hugging Face API responded with status ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        // 成功レスポンスを返す
         return {
             statusCode: 200,
-            body: JSON.stringify(result),
+            body: JSON.stringify(response),
         };
 
     } catch (error) {

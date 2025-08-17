@@ -1,6 +1,5 @@
 // ファイルパス: netlify/functions/transcribe.js
 
-// 安定している whisper-base モデルを使用します
 const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-base";
 
 export const handler = async (event) => {

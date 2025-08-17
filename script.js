@@ -1,7 +1,4 @@
-// ★★★ ファイルの一番最初にこの行を追加 ★★★
 import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
-
-// --- 以下、これまで作成したコードが続きます ---
 
 // HTML要素を取得
 const recordButton = document.getElementById('recordButton');
@@ -32,13 +29,12 @@ downloadAudioButton.addEventListener('click', downloadAudio);
 downloadTextButton.addEventListener('click', downloadText);
 downloadSummaryButton.addEventListener('click', downloadSummary);
 
-
 // --- 機能ごとの関数 ---
 
-// ブラウザ内で文字起こしを実行するメイン関数（修正版）
+// ブラウザ内で文字起こしを実行するメイン関数
 async function transcribeAudio(audioData) {
     try {
-        statusP.innerText = "AIモデルを準備中...";
+        statusP.innerText = "AIモデルを準備中... (初回は時間がかかります)";
         
         const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
             progress_callback: (data) => {
@@ -53,8 +49,7 @@ async function transcribeAudio(audioData) {
 
         statusP.innerText = "文字起こしを実行中...";
 
-        // ★★★ 修正箇所 ★★★
-        // 複雑な変換処理をやめ、音声データを直接ライブラリに渡す
+        // 音声データをArrayBufferに変換してライブラリに渡す
         const output = await transcriber(await audioData.arrayBuffer(), {
             chunk_length_s: 30,
             language: 'japanese',
@@ -71,10 +66,10 @@ async function transcribeAudio(audioData) {
     }
 }
 
-
 async function startRecording() {
     try {
         resetUI();
+        // ★★★ 修正箇所：最もシンプルな方法でマイクにアクセス ★★★
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         
@@ -107,6 +102,7 @@ function stopRecording() {
         isRecording = false;
         recordButton.innerText = "録音開始";
         recordButton.classList.remove("recording");
+        // MediaRecorderに渡したストリームのトラックをすべて停止
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
 }
@@ -124,12 +120,16 @@ async function handleFileUpload(event) {
 }
 
 async function processTranscriptionResult(transcribedText) {
-    if (transcribedText !== "[エラー]") {
+    // ★★★ 修正箇所：結果が空でないこともチェックする ★★★
+    if (transcribedText && transcribedText !== "[エラー]") {
         fullTranscription = transcribedText;
         transcriptionResultTextarea.value = fullTranscription;
         statusP.innerText = "文字起こしが完了しました。";
         downloadTextButton.classList.remove('hidden');
         summarizeButton.classList.remove('hidden');
+    } else if (transcribedText === "") {
+        statusP.innerText = "音声を認識できませんでした。";
+        transcriptionResultTextarea.value = "(ここに結果が表示されます)";
     } else {
         statusP.innerText = "文字起こしに失敗しました。";
     }
@@ -172,7 +172,7 @@ function resetUI() {
     downloadSummaryButton.classList.add('hidden');
 }
 
-// --- ダウンロード関数 ---
+// --- ダウンロード関数 (変更なし) ---
 function downloadAudio() {
     if (!finalAudioBlob) return;
     const url = URL.createObjectURL(finalAudioBlob);

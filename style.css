@@ -84,7 +84,18 @@ textarea {
 #downloadAudioButton:hover, #downloadTextButton:hover {
     background-color: #006666;
 }
+.hidden {
+    display: none;
+}
+
 .recording {
-    background-color: #ff4136; /* 赤色 */
+    background-color: #ff4136; /* 録音中のボタンを赤くする */
     color: white;
+}
+
+.controls, .download-area {
+    margin-top: 15px; /* ボタン間のスペース調整 */
+    display: flex;
+    gap: 10px; /* ボタン同士の間隔 */
+    justify-content: center;
 }

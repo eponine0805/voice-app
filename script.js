@@ -56,7 +56,7 @@ async function startRecording() {
         
         const bufferSize = 4096;
         scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-        scriptProcessor.onaudioprocess = (event) => {};
+        scriptProcessor.onaudioprocess = (event) => {}; // ストリームを渡すためだけ
 
         const mediaStreamDestination = audioContext.createMediaStreamDestination();
         microphoneStream.connect(scriptProcessor);
@@ -103,17 +103,20 @@ async function startRecording() {
     } catch (error) {
         console.error("録音開始エラー:", error);
         alert("マイクへのアクセスまたは音声処理の初期化に失敗しました。");
+        resetUI(); // エラー時もUIをリセット
     }
 }
 
 // 録音停止の処理
 function stopRecording() {
     if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
+        mediaRecorder.stop(); // これで onstop イベントが発火する
         isRecording = false;
         recordButton.innerText = "録音開始";
         recordButton.classList.remove("recording");
 
+        // Web Audio APIのリソースを解放
+        microphoneStream.mediaStream.getTracks().forEach(track => track.stop());
         microphoneStream.disconnect();
         scriptProcessor.disconnect();
         audioContext.close();
@@ -127,7 +130,10 @@ async function transcribeChunk(audioBlob) {
             method: 'POST',
             body: audioBlob,
         });
-        if (!response.ok) throw new Error('サーバーエラー');
+        if (!response.ok) {
+            console.error("サーバーからのエラー詳細:", await response.json());
+            throw new Error('サーバーエラー');
+        }
         const result = await response.json();
         return result.text || "";
     } catch (error) {
@@ -146,7 +152,10 @@ async function createSummary() {
             method: 'POST',
             body: fullTranscription
         });
-        if (!response.ok) throw new Error('サーバーエラー');
+        if (!response.ok) {
+            console.error("サーバーからのエラー詳細:", await response.json());
+            throw new Error('サーバーエラー');
+        }
         
         const result = await response.json();
         summaryResultTextarea.value = result.summary;
@@ -171,6 +180,8 @@ function resetUI() {
     transcriptionResultTextarea.value = "";
     summaryResultTextarea.value = "";
     statusP.innerText = "待機中...";
+    recordButton.innerText = "録音開始";
+    recordButton.classList.remove("recording");
 
     // 全てのボタンを初期状態に戻す
     summarizeButton.classList.add('hidden');
@@ -189,7 +200,7 @@ function downloadAudio() {
     a.href = url;
     a.download = `recording-${new Date().toISOString()}.webm`;
     document.body.appendChild(a);
-    a.click();
+a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
 }

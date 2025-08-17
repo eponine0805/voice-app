@@ -91,10 +91,6 @@ textarea {
     background-color: #256d44;
 }
 
-/* このクラスでボタンの表示・非表示を制御する */
-.hidden {
-    display: none;
-}
 /* ファイル選択ボタンの新しいスタイル */
 .file-label-button {
     font-size: 16px;
@@ -111,7 +107,7 @@ textarea {
     background-color: #1558b8; /* ホバー時の色 */
 }
 
-/* 以前からあるhiddenクラスはそのままにします */
+/* このクラスで要素の表示・非表示を制御する */
 .hidden {
     display: none;
 }

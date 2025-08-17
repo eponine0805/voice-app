@@ -1,7 +1,7 @@
 // ファイルパス: netlify/functions/transcribe.js
 
 // 安定して高速な whisper-base モデルのURL
-const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-base";
+const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3";
 
 // 'exports.handler' を使って、最も標準的な形式で関数を定義します
 exports.handler = async (event) => {

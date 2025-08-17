@@ -3,10 +3,12 @@ body {
     background-color: #f0f2f5;
     color: #333;
     display: flex;
+    flex-direction: column; /* 縦並びにする */
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     margin: 0;
+    gap: 20px; /* h1とコンテナの間隔 */
 }
 
 .container {
@@ -21,38 +23,41 @@ body {
 
 h1 {
     color: #1a73e8;
-}
-
-.controls {
-    margin: 20px 0;
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-
-button, input[type="file"] {
-    font-size: 16px;
-    padding: 10px 15px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    cursor: pointer;
+    margin: 0;
 }
 
 button {
+    font-size: 16px;
+    padding: 10px 15px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
     background-color: #1a73e8;
     color: white;
-    border: none;
+    transition: background-color 0.2s;
 }
 
-button:hover {
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
     background-color: #1558b8;
+}
+
+.controls, .download-area {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
 }
 
 #status {
     font-size: 18px;
     color: #555;
     font-weight: bold;
-    min-height: 25px;
+    min-height: 25px; /* 高さを固定してガタつきを防ぐ */
 }
 
 .result-box {
@@ -66,36 +71,27 @@ textarea {
     font-size: 16px;
     border: 1px solid #ddd;
     border-radius: 5px;
-    box-sizing: border-box; /* paddingを含めて幅100%にする */
-}
-/* 一番下に追加 */
-.download-area {
-    margin-top: 25px;
-    display: flex;
-    justify-content: center;
-    gap: 15px;
+    box-sizing: border-box;
 }
 
-#downloadAudioButton, #downloadTextButton {
-    background-color: #008080; /* 少し違う色にする */
-    display: none; /* 最初は非表示にしておく */
+/* 録音中ボタンのスタイル */
+.recording {
+    background-color: #ff4136;
 }
 
-#downloadAudioButton:hover, #downloadTextButton:hover {
-    background-color: #006666;
+.recording:hover {
+    background-color: #d9342b;
 }
+
+/* ダウンロードボタン用の特別なスタイル */
+#downloadAudioButton, #downloadTextButton, #downloadSummaryButton {
+    background-color: #2e8b57; /* 緑系の色 */
+}
+#downloadAudioButton:hover, #downloadTextButton:hover, #downloadSummaryButton:hover {
+    background-color: #256d44;
+}
+
+/* このクラスでボタンの表示・非表示を制御する */
 .hidden {
     display: none;
-}
-
-.recording {
-    background-color: #ff4136; /* 録音中のボタンを赤くする */
-    color: white;
-}
-
-.controls, .download-area {
-    margin-top: 15px; /* ボタン間のスペース調整 */
-    display: flex;
-    gap: 10px; /* ボタン同士の間隔 */
-    justify-content: center;
 }

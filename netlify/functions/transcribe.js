@@ -2,9 +2,6 @@
 
 const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3";
 
-// 'axios'ライブラリを読み込む
-const axios = require('axios');
-
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -15,30 +12,50 @@ exports.handler = async (event) => {
         if (!HUGGINGFACE_TOKEN) {
             throw new Error("Hugging Face API token is not configured.");
         }
+
         if (!event.body) {
             throw new Error("Request body is missing.");
         }
 
+        // ▼▼▼ ここからが重要な修正 ▼▼▼
+
+        // ブラウザから送られてきたContent-Typeヘッダーを取得する
+        const contentType = event.headers['content-type'];
+        if (!contentType) {
+            throw new Error("Content-Type header is missing from the request.");
+        }
+
         const audioBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
         
-        // fetchの代わりにaxiosを使ってHugging Face APIにリクエストを送信
-        const response = await axios.post(API_URL, audioBuffer, {
+        const response = await fetch(API_URL, {
+            method: 'POST',
             headers: {
+                // 認証情報に加えて、取得したContent-Typeをそのまま設定する
                 'Authorization': `Bearer ${HUGGINGFACE_TOKEN}`,
-                // axiosはBufferを送信する際に自動で適切なContent-Typeを設定してくれる
+                'Content-Type': contentType,
             },
-            // Netlifyのタイムアウト（最大26秒）に合わせて設定
-            timeout: 25000 
+            body: audioBuffer,
         });
 
-        // 成功レスポンスを返す（axiosでは結果は .data プロパティに入る）
+        // ▲▲▲ ここまでが重要な修正 ▲▲▲
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Hugging Face API Error:", errorBody);
+            return {
+                statusCode: response.status,
+                body: JSON.stringify({ error: `Hugging Face API responded with an error: ${errorBody}` })
+            };
+        }
+
+        const result = await response.json();
         return {
             statusCode: 200,
-            body: JSON.stringify(response.data),
+            body: JSON.stringify(result),
         };
 
     } catch (error) {
-        console.error("Netlify Function Error:", error.response ? error.response.data : error.message);
+        console.error("Netlify Function Error:", error);
         return {
             statusCode: 500,
             body: JSON.stringify({ error: error.message }),

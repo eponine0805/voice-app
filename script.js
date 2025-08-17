@@ -26,7 +26,6 @@ recordButton.addEventListener('click', () => {
         stopRecording();
     }
 });
-
 fileInput.addEventListener('change', handleFileUpload);
 summarizeButton.addEventListener('click', createSummary);
 downloadAudioButton.addEventListener('click', downloadAudio);
@@ -40,14 +39,16 @@ async function startRecording() {
     try {
         resetUI();
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContext = new (window.AudioContext || window.webkitAudio-Context)();
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
+        // AudioWorkletをロード
         await audioContext.audioWorklet.addModule('worklet-processor.js');
         
         microphoneStream = audioContext.createMediaStreamSource(stream);
         
+        // 音量増幅ノード
         const gainNode = audioContext.createGain();
-        gainNode.gain.value = 2.0; // 音量増幅
+        gainNode.gain.value = 2.0;
         microphoneStream.connect(gainNode);
         
         const workletNode = new AudioWorkletNode(audioContext, 'audio-processor');
@@ -62,13 +63,13 @@ async function startRecording() {
         recordButton.classList.add("recording");
         statusP.innerText = "録音中...";
 
-        // リアルタイム処理（ストリーミング）の心臓部
+        // ★★★ リアルタイム処理（ストリーミング）の心臓部 ★★★
         mediaRecorder.ondataavailable = async (event) => {
             if (event.data.size > 0) {
-                // ダウンロード用にチャンクを保存
+                // ダウンロード用に音声チャンクを常に保存
                 audioChunks.push(event.data);
                 
-                // サーバーにチャンクを送信
+                // サーバーにチャンクを送信して文字起こし
                 statusP.innerText = "文字起こし中...";
                 const transcribedText = await transcribeChunk(event.data);
 
@@ -77,6 +78,7 @@ async function startRecording() {
                     transcriptionResultTextarea.value = fullTranscription;
                 }
                 
+                // 録音が続いていればステータスを「録音中」に戻す
                 if (isRecording) {
                     statusP.innerText = "録音中...";
                 }
@@ -86,9 +88,11 @@ async function startRecording() {
         // 録音が完全に停止した時の処理
         mediaRecorder.onstop = () => {
             statusP.innerText = "録音が完了しました。";
+            // 保存しておいた全チャンクから最終的な音声ファイルを作成
             finalAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             downloadAudioButton.classList.remove('hidden');
 
+            // エラーがなく、文字起こし結果があれば、次のステップのボタンを表示
             if (fullTranscription.trim().length > 0 && !fullTranscription.includes("[エラー]")) {
                 downloadTextButton.classList.remove('hidden');
                 summarizeButton.classList.remove('hidden');

@@ -1,3 +1,8 @@
+// ★★★ ファイルの一番最初にこの行を追加 ★★★
+import { pipeline, AudioBuffer } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+
+// --- 以下、これまで作成したコードが続きます ---
+
 // HTML要素を取得
 const recordButton = document.getElementById('recordButton');
 const fileInput = document.getElementById('fileInput');
@@ -35,7 +40,6 @@ async function transcribeAudio(audioData) {
     try {
         statusP.innerText = "AIモデルを準備中... (初回は時間がかかります)";
         
-        // Transformers.jsのパイプラインを準備（Whisperモデルを指定）
         const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base');
 
         statusP.innerText = "音声データを変換中...";
@@ -44,7 +48,6 @@ async function transcribeAudio(audioData) {
 
         statusP.innerText = "文字起こしを実行中...";
 
-        // 文字起こしを実行
         const output = await transcriber(audioBuffer, {
             chunk_length_s: 30,
             language: 'japanese',
@@ -173,7 +176,7 @@ function resetUI() {
     downloadSummaryButton.classList.add('hidden');
 }
 
-// --- ダウンロード関数 (変更なし) ---
+// --- ダウンロード関数 ---
 function downloadAudio() {
     if (!finalAudioBlob) return;
     const url = URL.createObjectURL(finalAudioBlob);

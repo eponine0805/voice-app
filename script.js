@@ -1,5 +1,6 @@
 // HTML要素を取得
 const recordButton = document.getElementById('recordButton');
+const fileInput = document.getElementById('fileInput'); // 追加
 const statusP = document.getElementById('status');
 const transcriptionResultTextarea = document.getElementById('transcriptionResult');
 const summaryResultTextarea = document.getElementById('summaryResult'); 
@@ -17,33 +18,52 @@ let fullTranscription = "";
 let audioContext;
 let microphoneStream;
 
-// --- イベントリスナー ---
+// --- メインのイベントリスナー ---
 recordButton.addEventListener('click', () => {
-    if (!isRecording) {
-        startRecording();
-    } else {
-        stopRecording();
-    }
+    if (!isRecording) startRecording();
+    else stopRecording();
 });
+
+// 追加：ファイルがアップロードされたときのイベントリスナー
+fileInput.addEventListener('change', handleFileUpload);
+
 summarizeButton.addEventListener('click', createSummary);
 downloadAudioButton.addEventListener('click', downloadAudio);
 downloadTextButton.addEventListener('click', downloadText);
 downloadSummaryButton.addEventListener('click', downloadSummary);
 
 // --- 機能ごとの関数 ---
+
+// 追加：ファイルアップロード処理
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    resetUI(); // UIをリセット
+    statusP.innerText = "ファイルを読み込みました。文字起こしを開始します...";
+
+    // 録音データとしてファイルを設定し、ダウンロード可能にする
+    finalAudioBlob = file;
+    downloadAudioButton.classList.remove('hidden');
+
+    // 文字起こしプロセスを開始
+    const transcribedText = await transcribeChunk(file);
+    await processTranscriptionResult(transcribedText);
+
+    // inputの値をリセットして同じファイルを再度選択できるようにする
+    event.target.value = '';
+}
+
 async function startRecording() {
     try {
         resetUI();
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // AudioWorkletをロードする
         await audioContext.audioWorklet.addModule('worklet-processor.js');
         
         microphoneStream = audioContext.createMediaStreamSource(stream);
         const workletNode = new AudioWorkletNode(audioContext, 'audio-processor');
         const mediaStreamDestination = audioContext.createMediaStreamDestination();
-
         microphoneStream.connect(workletNode);
         workletNode.connect(mediaStreamDestination);
         
@@ -56,9 +76,7 @@ async function startRecording() {
         mediaRecorder.start();
 
         mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
+            if (event.data.size > 0) audioChunks.push(event.data);
         };
 
         mediaRecorder.onstop = async () => {
@@ -68,16 +86,7 @@ async function startRecording() {
 
             statusP.innerText += " 文字起こしを開始します...";
             const transcribedText = await transcribeChunk(finalAudioBlob);
-            
-            if (transcribedText !== "[エラー]") {
-                fullTranscription = transcribedText;
-                transcriptionResultTextarea.value = fullTranscription;
-                statusP.innerText = "文字起こしが完了しました。";
-                downloadTextButton.classList.remove('hidden');
-                summarizeButton.classList.remove('hidden');
-            } else {
-                statusP.innerText = "文字起こしに失敗しました。";
-            }
+            await processTranscriptionResult(transcribedText); // 共通処理を呼び出す
         };
     } catch (error) {
         console.error("録音開始エラー:", error);
@@ -94,6 +103,19 @@ function stopRecording() {
         recordButton.classList.remove("recording");
         microphoneStream.mediaStream.getTracks().forEach(track => track.stop());
         audioContext.close();
+    }
+}
+
+// 共通化：文字起こし結果を処理する関数
+async function processTranscriptionResult(transcribedText) {
+    if (transcribedText !== "[エラー]") {
+        fullTranscription = transcribedText;
+        transcriptionResultTextarea.value = fullTranscription;
+        statusP.innerText = "文字起こしが完了しました。";
+        downloadTextButton.classList.remove('hidden');
+        summarizeButton.classList.remove('hidden');
+    } else {
+        statusP.innerText = "文字起こしに失敗しました。";
     }
 }
 
@@ -160,7 +182,8 @@ function downloadAudio() {
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    a.download = `recording-${new Date().toISOString()}.webm`;
+    // ファイル名にアップロードされたファイル名、または日付を使う
+    a.download = finalAudioBlob.name || `recording-${new Date().toISOString()}.webm`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -170,7 +193,8 @@ function downloadAudio() {
 function downloadText() {
     const text = transcriptionResultTextarea.value;
     if (!text) return;
-    const blob = new Blob([text], { type: 'text/plain' });
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // 文字化け対策BOM
+    const blob = new Blob([bom, text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -185,14 +209,15 @@ function downloadText() {
 function downloadSummary() {
     const text = summaryResultTextarea.value;
     if (!text) return;
-    const blob = new Blob([text], { type: 'text/plain' });
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // 文字化け対策BOM
+    const blob = new Blob([bom, text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
     a.download = `summary-${new Date().toISOString()}.txt`;
     document.body.appendChild(a);
-    a.click();
+a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
 }

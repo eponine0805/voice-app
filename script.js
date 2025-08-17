@@ -1,5 +1,5 @@
 // ★★★ ファイルの一番最初にこの行を追加 ★★★
-import { pipeline, AudioBuffer } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
 
 // --- 以下、これまで作成したコードが続きます ---
 

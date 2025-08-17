@@ -47,7 +47,10 @@ async function startRecording() {
         gainNode.connect(workletNode);
         workletNode.connect(mediaStreamDestination);
         
-        mediaRecorder = new MediaRecorder(mediaStreamDestination.stream);
+        // ★★★ ここから修正 ★★★
+        // MediaRecorderに音声形式をヒントとして与える
+        mediaRecorder = new MediaRecorder(mediaStreamDestination.stream, { mimeType: 'audio/webm' });
+        // ★★★ ここまで修正 ★★★
         
         isRecording = true;
         recordButton.innerText = "録音停止";
@@ -92,9 +95,8 @@ async function handleFileUpload(event) {
 
     resetUI();
     statusP.innerText = "ファイルを読み込みました。文字起こしを開始します...";
-    finalAudioBlob = file;
+    finalAudioBlob = new Blob([file], { type: file.type || 'audio/webm' });
     downloadAudioButton.classList.remove('hidden');
-
     const transcribedText = await transcribeChunk(file);
     await processTranscriptionResult(transcribedText);
     event.target.value = '';

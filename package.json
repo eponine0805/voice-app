@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
+    "@google/generative-ai": "^0.14.1",
     "@huggingface/inference": "^2.6.4"
   }
 }

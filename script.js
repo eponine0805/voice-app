@@ -36,7 +36,7 @@ async function transcribeAudio(audioData) {
     try {
         statusP.innerText = "AIモデルを準備中... (初回は時間がかかります)";
         
-        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
+        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base', {
             progress_callback: (data) => {
                 if (data.status === 'progress') {
                     const progress = (data.progress).toFixed(2);

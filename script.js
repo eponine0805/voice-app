@@ -1,4 +1,7 @@
+// ★★★ ファイルの一番最初にこの行を追加 ★★★
 import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+
+// --- 以下、これまで作成したコードが続きます ---
 
 // HTML要素を取得
 const recordButton = document.getElementById('recordButton');
@@ -29,49 +32,102 @@ downloadAudioButton.addEventListener('click', downloadAudio);
 downloadTextButton.addEventListener('click', downloadText);
 downloadSummaryButton.addEventListener('click', downloadSummary);
 
+
 // --- 機能ごとの関数 ---
 
 // ブラウザ内で文字起こしを実行するメイン関数
-// この関数だけを置き換えてください
 async function transcribeAudio(audioData) {
     try {
-        console.log("チェックポイント1：文字起こし処理を開始しました。");
         statusP.innerText = "AIモデルを準備中... (初回は時間がかかります)";
         
-        console.log("チェックポイント2：AIパイプラインの準備を開始します。");
         const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
             progress_callback: (data) => {
                 if (data.status === 'progress') {
                     const progress = (data.progress).toFixed(2);
                     statusP.innerText = `AIモデルを準備中... (${progress}%)`;
-                } else if (data.status === 'ready') {
-                    console.log("チェックポイント2.5：モデルの準備が完了しました。");
+                } else {
                     statusP.innerText = `AIモデルを準備中... (${data.status})`;
                 }
             }
         });
-        console.log("チェックポイント3：AIパイプラインの準備が完了しました。", transcriber);
 
         statusP.innerText = "文字起こしを実行中...";
-        console.log("チェックポイント4：AIモデルによる音声処理を開始します。");
 
+        // ★★★ 修正箇所 ★★★
+        // 音声データを直接ライブラリに渡す前に、形式を整える
         const output = await transcriber(await audioData.arrayBuffer(), {
             chunk_length_s: 30,
             language: 'japanese',
             task: 'transcribe',
         });
         
-        console.log("チェックポイント5：AIモデルの処理が完了しました。出力:", output);
-        
         const transcribedText = output.text;
-        console.log("チェックポイント6：抽出されたテキスト:", transcribedText);
-        
         await processTranscriptionResult(transcribedText);
 
     } catch (error) {
-        console.error("チェックポイントX：エラーが発生しました。", error);
+        console.error("文字起こし中にエラー:", error);
         statusP.innerText = "文字起こし中にエラーが発生しました。";
         await processTranscriptionResult("[エラー]");
+    }
+}
+
+// in script.js
+
+async function startRecording() {
+    try {
+        resetUI();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // --- ▼ここからが音量増幅のコード▼ ---
+        // Web Audio APIのセットアップ
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // AudioWorkletをロード
+        await audioContext.audioWorklet.addModule('worklet-processor.js');
+        
+        // マイクからの音声ストリームを取得
+        microphoneStream = audioContext.createMediaStreamSource(stream);
+        
+        // 音量を増幅するための「ゲインノード」を作成
+        const gainNode = audioContext.createGain();
+        // 増幅率を設定（3.0 = 3倍）。必要に応じて調整してください
+        gainNode.gain.value = 3.0; 
+        
+        // マイクの音声をゲインノードに接続
+        microphoneStream.connect(gainNode);
+        
+        const workletNode = new AudioWorkletNode(audioContext, 'audio-processor');
+        const mediaStreamDestination = audioContext.createMediaStreamDestination();
+
+        // 増幅された音声をWorkletに接続
+        gainNode.connect(workletNode);
+        // Workletから最終的な出力先に接続
+        workletNode.connect(mediaStreamDestination);
+        
+        // 増幅・処理された音声ストリームをMediaRecorderに渡す
+        mediaRecorder = new MediaRecorder(mediaStreamDestination.stream);
+        // --- ▲ここまでが音量増幅のコード▲ ---
+
+        isRecording = true;
+        recordButton.innerText = "録音停止";
+        recordButton.classList.add("recording");
+        statusP.innerText = "録音中...";
+        mediaRecorder.start();
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            statusP.innerText = "録音が完了しました。";
+            finalAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            downloadAudioButton.classList.remove('hidden');
+            await transcribeAudio(finalAudioBlob); // ブラウザ内で文字起こし
+        };
+    } catch (error) {
+        console.error("録音開始エラー:", error);
+        alert("マイクへのアクセスまたは音声処理の初期化に失敗しました。");
+        resetUI();
     }
 }
 
@@ -100,7 +156,7 @@ async function handleFileUpload(event) {
 
 async function processTranscriptionResult(transcribedText) {
     // ★★★ 修正箇所：結果が空でないこともチェックする ★★★
-    if (transcribedText && transcribedText !== "[エラー]") {
+    if (transcribedText && transcribedText.trim() !== "" && transcribedText !== "[エラー]") {
         fullTranscription = transcribedText;
         transcriptionResultTextarea.value = fullTranscription;
         statusP.innerText = "文字起こしが完了しました。";

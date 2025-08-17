@@ -1,33 +1,56 @@
 // ファイルパス: netlify/functions/transcribe.js
 
-// 'import'の代わりに'require'を使ってライブラリを読み込みます
-const { HfInference } = require("@huggingface/inference");
+// 安定して高速な whisper-base モデルのURL
+const API_URL = "https://api-inference.huggingface.co/models/openai/whisper-base";
 
-const hf = new HfInference(process.env.HUGGINGFACE_TOKEN);
-
-// 'export const handler'の代わりに'exports.handler'を使います
+// 'exports.handler' を使って、最も標準的な形式で関数を定義します
 exports.handler = async (event) => {
+    // POSTリクエスト以外は受け付けない
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
+        // APIキーを環境変数から読み込む
+        const HUGGINGFACE_TOKEN = process.env.HUGGINGFACE_TOKEN;
+        if (!HUGGINGFACE_TOKEN) {
+            throw new Error("Hugging Face API token is not configured.");
+        }
+
+        // リクエストボディが存在しない場合はエラー
         if (!event.body) {
             throw new Error("Request body is missing.");
         }
 
+        // 音声データをBufferに変換
         const audioBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
         
-        const audioBlob = new Blob([audioBuffer]);
-
-        const response = await hf.automaticSpeechRecognition({
-            model: 'openai/whisper-base',
-            data: audioBlob,
+        // Hugging Face APIに直接fetchでリクエストを送信
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${HUGGINGFACE_TOKEN}`,
+            },
+            body: audioBuffer,
         });
 
+        // 応答が正常でない場合、APIからのエラーメッセージをそのまま返す
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Hugging Face API Error:", errorBody);
+            // エラーをJSON形式でラップして返す
+            return {
+                statusCode: response.status,
+                body: JSON.stringify({ error: `Hugging Face API responded with status ${response.status}: ${errorBody}` })
+            };
+        }
+
+        const result = await response.json();
+
+        // 成功レスポンスを返す
         return {
             statusCode: 200,
-            body: JSON.stringify(response),
+            body: JSON.stringify(result),
         };
 
     } catch (error) {

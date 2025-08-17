@@ -35,34 +35,27 @@ downloadSummaryButton.addEventListener('click', downloadSummary);
 
 // --- 機能ごとの関数 ---
 
-// ブラウザ内で文字起こしを実行するメイン関数
+// ブラウザ内で文字起こしを実行するメイン関数（修正版）
 async function transcribeAudio(audioData) {
     try {
         statusP.innerText = "AIモデルを準備中...";
         
-        // ★★★ ここからが修正箇所 ★★★
-        // pipeline関数に、モデルのダウンロード状況を監視する機能を追加
-        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-large', {
+        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base', {
             progress_callback: (data) => {
-                // ダウンロードの進捗状況をリアルタイムで表示
                 if (data.status === 'progress') {
                     const progress = (data.progress).toFixed(2);
                     statusP.innerText = `AIモデルを準備中... (${progress}%)`;
                 } else {
-                    // "準備完了" や "設定中" などの他のステータスも表示
                     statusP.innerText = `AIモデルを準備中... (${data.status})`;
                 }
             }
         });
-        // ★★★ ここまでが修正箇所 ★★★
-
-        statusP.innerText = "音声データを変換中...";
-        const audio = await audioData.arrayBuffer();
-        const audioBuffer = await decodeAudioData(audio);
 
         statusP.innerText = "文字起こしを実行中...";
 
-        const output = await transcriber(audioBuffer, {
+        // ★★★ 修正箇所 ★★★
+        // 複雑な変換処理をやめ、音声データを直接ライブラリに渡す
+        const output = await transcriber(await audioData.arrayBuffer(), {
             chunk_length_s: 30,
             language: 'japanese',
             task: 'transcribe',
@@ -76,17 +69,6 @@ async function transcribeAudio(audioData) {
         statusP.innerText = "文字起こし中にエラーが発生しました。";
         await processTranscriptionResult("[エラー]");
     }
-}
-
-// AudioContextを使って音声データをデコードするヘルパー関数
-function decodeAudioData(arrayBuffer) {
-    return new Promise((resolve, reject) => {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        audioContext.decodeAudioData(arrayBuffer, 
-            (buffer) => resolve(buffer.getChannelData(0)),
-            (error) => reject(error)
-        );
-    });
 }
 
 

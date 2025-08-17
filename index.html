@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
+<body>
     <h1>音声録音＆翻訳アプリ 🎙️</h1>
 
     <div class="container">
         <div class="controls">
             <button id="recordButton">録音開始</button>
-            <input type="file" id="fileInput" accept="audio/*">
+            <button id="summarizeButton" class="hidden">議事録を作成</button>
         </div>
 
         <p id="status">待機中...</p>
@@ -24,13 +24,14 @@
         </div>
         
         <div class="result-box">
-            <h2>翻訳結果 (日本語):</h2>
-            <textarea id="translationResult" rows="10" readonly></textarea>
+            <h2>議事録結果:</h2>
+            <textarea id="summaryResult" rows="10" readonly></textarea>
         </div>
 
         <div class="download-area">
-            <button id="downloadAudioButton">音声をダウンロード</button>
-            <button id="downloadTextButton">テキストをダウンロード</button>
+            <button id="downloadAudioButton" class="hidden">音声をダウンロード</button>
+            <button id="downloadTextButton" class="hidden">テキストをダウンロード</button>
+            <button id="downloadSummaryButton" class="hidden">議事録をダウンロード</button>
         </div>
     </div>
 

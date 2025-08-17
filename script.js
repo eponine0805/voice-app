@@ -38,9 +38,23 @@ downloadSummaryButton.addEventListener('click', downloadSummary);
 // ブラウザ内で文字起こしを実行するメイン関数
 async function transcribeAudio(audioData) {
     try {
-        statusP.innerText = "AIモデルを準備中... (初回は時間がかかります)";
+        statusP.innerText = "AIモデルを準備中...";
         
-        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base');
+        // ★★★ ここからが修正箇所 ★★★
+        // pipeline関数に、モデルのダウンロード状況を監視する機能を追加
+        const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-large', {
+            progress_callback: (data) => {
+                // ダウンロードの進捗状況をリアルタイムで表示
+                if (data.status === 'progress') {
+                    const progress = (data.progress).toFixed(2);
+                    statusP.innerText = `AIモデルを準備中... (${progress}%)`;
+                } else {
+                    // "準備完了" や "設定中" などの他のステータスも表示
+                    statusP.innerText = `AIモデルを準備中... (${data.status})`;
+                }
+            }
+        });
+        // ★★★ ここまでが修正箇所 ★★★
 
         statusP.innerText = "音声データを変換中...";
         const audio = await audioData.arrayBuffer();

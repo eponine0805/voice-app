@@ -14,8 +14,9 @@ export const handler = async (event) => {
             throw new Error("Request body is missing.");
         }
 
+        // isBase64Encodedフラグに基づいてBufferに正しく変換
         const audioBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
-
+        
         // BufferをBlobに変換
         const audioBlob = new Blob([audioBuffer]);
 

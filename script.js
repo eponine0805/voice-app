@@ -115,12 +115,18 @@ async function processTranscriptionResult(transcribedText) {
 
 async function transcribeChunk(audioBlob) {
     try {
+        // ▼▼▼ ここから修正 ▼▼▼
+        // 音声データをBase64文字列に変換する
+        const base64Audio = await blobToBase64(audioBlob);
+
         const response = await fetch('/.netlify/functions/transcribe', {
             method: 'POST',
-            headers: { // ▼▼▼ この3行を追加 ▼▼▼
+            headers: {
+                // Content-Typeは元のファイルのものをそのまま送る
                 'Content-Type': audioBlob.type
             },
-            body: audioBlob,
+            // bodyにはBase64文字列をセットする
+            body: base64Audio,
         });
         if (!response.ok) {
             const errorResult = await response.json();
@@ -217,4 +223,22 @@ function downloadSummary() {
     a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
+}
+/**
+ * Blob (またはFile) オブジェクトをBase64形式の文字列に変換する関数
+ * @param {Blob} blob 変換したいBlobまたはFileオブジェクト
+ * @returns {Promise<string>} Base64エンコードされた文字列
+ */
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        // readAsDataURLは "data:audio/wav;base64,UklGRi..." のような文字列を生成する
+        reader.readAsDataURL(blob);
+        reader.onload = () => {
+            // "data:...," の部分を取り除き、Base64部分だけを返す
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = error => reject(error);
+    });
 }

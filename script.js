@@ -68,7 +68,7 @@ async function startRecording() {
         // 音量を増幅するための「ゲインノード」を作成
         const gainNode = audioContext.createGain();
         // 増幅率を設定（2.0 = 2倍）。数値を上げすぎると音が割れるので注意
-        gainNode.gain.value = 2.0; 
+        gainNode.gain.value = 3.0; 
         
         // マイクの音声をゲインノードに接続する
         microphoneStream.connect(gainNode);

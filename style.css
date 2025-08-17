@@ -98,7 +98,7 @@ textarea {
     border-radius: 5px;
     cursor: pointer;
     background-color: #1a73e8; /* 他のボタンと同じ色 */
-    color: white;
+    color: rgb(13, 179, 13);
     transition: background-color 0.2s;
     display: inline-block; /* ボタンとして正しく表示させるため */
 }

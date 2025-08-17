@@ -59,12 +59,26 @@ async function startRecording() {
         resetUI();
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
         await audioContext.audioWorklet.addModule('worklet-processor.js');
         
         microphoneStream = audioContext.createMediaStreamSource(stream);
+        
+        // --- ▼ここから追加▼ ---
+        // 音量を増幅するための「ゲインノード」を作成
+        const gainNode = audioContext.createGain();
+        // 増幅率を設定（2.0 = 2倍）。数値を上げすぎると音が割れるので注意
+        gainNode.gain.value = 2.0; 
+        
+        // マイクの音声をゲインノードに接続する
+        microphoneStream.connect(gainNode);
+        // --- ▲ここまで追加▲ ---
+
         const workletNode = new AudioWorkletNode(audioContext, 'audio-processor');
         const mediaStreamDestination = audioContext.createMediaStreamDestination();
-        microphoneStream.connect(workletNode);
+
+        // 接続元を microphoneStream から gainNode に変更
+        gainNode.connect(workletNode);
         workletNode.connect(mediaStreamDestination);
         
         mediaRecorder = new MediaRecorder(mediaStreamDestination.stream);
@@ -76,7 +90,9 @@ async function startRecording() {
         mediaRecorder.start();
 
         mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) audioChunks.push(event.data);
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
         };
 
         mediaRecorder.onstop = async () => {
@@ -86,7 +102,8 @@ async function startRecording() {
 
             statusP.innerText += " 文字起こしを開始します...";
             const transcribedText = await transcribeChunk(finalAudioBlob);
-            await processTranscriptionResult(transcribedText); // 共通処理を呼び出す
+            
+            await processTranscriptionResult(transcribedText);
         };
     } catch (error) {
         console.error("録音開始エラー:", error);

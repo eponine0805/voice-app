@@ -29,14 +29,13 @@ downloadAudioButton.addEventListener('click', downloadAudio);
 downloadTextButton.addEventListener('click', downloadText);
 downloadSummaryButton.addEventListener('click', downloadSummary);
 
-
 // --- 機能ごとの関数 ---
 
+// ブラウザ内で文字起こしを実行するメイン関数
 async function transcribeAudio(audioData) {
     try {
         statusP.innerText = "AIモデルを準備中... (初回は時間がかかります)";
         
-        // ★★★ 性能の高い'small'モデルを使用 ★★★
         const transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
             progress_callback: (data) => {
                 if (data.status === 'progress') {
@@ -48,9 +47,16 @@ async function transcribeAudio(audioData) {
             }
         });
 
+        statusP.innerText = "音声データをAI向けに変換中...";
+
+        // ★★★ ここからが重要な修正 ★★★
+        // 音声データをAIが最も好む形式 (Float32Array, 16kHz) に変換する
+        const audio_data_resampled = await resampleAudio(audioData);
+        // ★★★ ここまでが重要な修正 ★★★
+
         statusP.innerText = "文字起こしを実行中...";
 
-        const output = await transcriber(await audioData.arrayBuffer(), {
+        const output = await transcriber(audio_data_resampled, {
             chunk_length_s: 30,
             language: 'japanese',
             task: 'transcribe',
@@ -66,10 +72,18 @@ async function transcribeAudio(audioData) {
     }
 }
 
+// 音声データをデコードし、16kHzにリサンプリングするヘルパー関数
+async function resampleAudio(audioData) {
+    const arrayBuffer = await audioData.arrayBuffer();
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    return audioBuffer.getChannelData(0);
+}
+
+
 async function startRecording() {
     try {
         resetUI();
-        // ★★★ 最もシンプルで確実な録音方法 ★★★
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
         
@@ -91,7 +105,7 @@ async function startRecording() {
         };
     } catch (error) {
         console.error("録音開始エラー:", error);
-        alert("マイクへのアクセスまたは音声処理の初期化に失敗しました。");
+        alert("マイクへのアクセスに失敗しました。");
         resetUI();
     }
 }
@@ -132,7 +146,7 @@ async function processTranscriptionResult(transcribedText) {
     }
 }
 
-// 議事録作成は引き続きサーバー機能(summarize.js)を使います
+// 議事録作成（変更なし）
 async function createSummary() {
     statusP.innerText = "議事録を作成中...";
     summarizeButton.disabled = true;
@@ -154,6 +168,7 @@ async function createSummary() {
     }
 }
 
+// UIリセット（変更なし）
 function resetUI() {
     audioChunks = [];
     finalAudioBlob = null;
@@ -169,7 +184,7 @@ function resetUI() {
     downloadSummaryButton.classList.add('hidden');
 }
 
-// --- ダウンロード関数 ---
+// ダウンロード関数（変更なし）
 function downloadAudio() {
     if (!finalAudioBlob) return;
     const url = URL.createObjectURL(finalAudioBlob);
@@ -182,7 +197,6 @@ function downloadAudio() {
     window.URL.revokeObjectURL(url);
     a.remove();
 }
-
 function downloadText() {
     const text = transcriptionResultTextarea.value;
     if (!text) return;
@@ -198,11 +212,10 @@ function downloadText() {
     window.URL.revokeObjectURL(url);
     a.remove();
 }
-
 function downloadSummary() {
     const text = summaryResultTextarea.value;
     if (!text) return;
-    const bom = new Uint8Array([0xEF, 0xBB, -BF]);
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
     const blob = new Blob([bom, text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

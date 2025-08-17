@@ -117,6 +117,9 @@ async function transcribeChunk(audioBlob) {
     try {
         const response = await fetch('/.netlify/functions/transcribe', {
             method: 'POST',
+            headers: { // ▼▼▼ この3行を追加 ▼▼▼
+                'Content-Type': audioBlob.type
+            },
             body: audioBlob,
         });
         if (!response.ok) {

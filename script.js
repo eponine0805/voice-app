@@ -20,11 +20,8 @@ let microphoneStream;
 
 // --- メインのイベントリスナー ---
 recordButton.addEventListener('click', () => {
-    if (!isRecording) {
-        startRecording();
-    } else {
-        stopRecording();
-    }
+    if (!isRecording) startRecording();
+    else stopRecording();
 });
 fileInput.addEventListener('change', handleFileUpload);
 summarizeButton.addEventListener('click', createSummary);
@@ -32,21 +29,15 @@ downloadAudioButton.addEventListener('click', downloadAudio);
 downloadTextButton.addEventListener('click', downloadText);
 downloadSummaryButton.addEventListener('click', downloadSummary);
 
-
 // --- 機能ごとの関数 ---
-
 async function startRecording() {
     try {
         resetUI();
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // AudioWorkletをロード
         await audioContext.audioWorklet.addModule('worklet-processor.js');
         
         microphoneStream = audioContext.createMediaStreamSource(stream);
-        
-        // 音量増幅ノード
         const gainNode = audioContext.createGain();
         gainNode.gain.value = 2.0;
         microphoneStream.connect(gainNode);
@@ -62,46 +53,21 @@ async function startRecording() {
         recordButton.innerText = "録音停止";
         recordButton.classList.add("recording");
         statusP.innerText = "録音中...";
+        mediaRecorder.start();
 
-        // ★★★ リアルタイム処理（ストリーミング）の心臓部 ★★★
-        mediaRecorder.ondataavailable = async (event) => {
-            if (event.data.size > 0) {
-                // ダウンロード用に音声チャンクを常に保存
-                audioChunks.push(event.data);
-                
-                // サーバーにチャンクを送信して文字起こし
-                statusP.innerText = "文字起こし中...";
-                const transcribedText = await transcribeChunk(event.data);
-
-                if (transcribedText !== "[エラー]") {
-                    fullTranscription += transcribedText + " ";
-                    transcriptionResultTextarea.value = fullTranscription;
-                }
-                
-                // 録音が続いていればステータスを「録音中」に戻す
-                if (isRecording) {
-                    statusP.innerText = "録音中...";
-                }
-            }
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) audioChunks.push(event.data);
         };
 
-        // 録音が完全に停止した時の処理
-        mediaRecorder.onstop = () => {
+        mediaRecorder.onstop = async () => {
             statusP.innerText = "録音が完了しました。";
-            // 保存しておいた全チャンクから最終的な音声ファイルを作成
             finalAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             downloadAudioButton.classList.remove('hidden');
 
-            // エラーがなく、文字起こし結果があれば、次のステップのボタンを表示
-            if (fullTranscription.trim().length > 0 && !fullTranscription.includes("[エラー]")) {
-                downloadTextButton.classList.remove('hidden');
-                summarizeButton.classList.remove('hidden');
-            }
+            statusP.innerText += " 文字起こしを開始します...";
+            const transcribedText = await transcribeChunk(finalAudioBlob);
+            await processTranscriptionResult(transcribedText);
         };
-        
-        // 15秒ごとに ondataavailable イベントを発生させる
-        mediaRecorder.start(15000);
-
     } catch (error) {
         console.error("録音開始エラー:", error);
         alert("マイクへのアクセスまたは音声処理の初期化に失敗しました。");
@@ -126,13 +92,11 @@ async function handleFileUpload(event) {
 
     resetUI();
     statusP.innerText = "ファイルを読み込みました。文字起こしを開始します...";
-
     finalAudioBlob = file;
     downloadAudioButton.classList.remove('hidden');
 
     const transcribedText = await transcribeChunk(file);
     await processTranscriptionResult(transcribedText);
-
     event.target.value = '';
 }
 
@@ -155,8 +119,9 @@ async function transcribeChunk(audioBlob) {
             body: audioBlob,
         });
         if (!response.ok) {
-            console.error("サーバーからのエラー詳細:", await response.json());
-            throw new Error('サーバーエラー');
+            const errorResult = await response.json();
+            console.error("サーバーからのエラー詳細:", errorResult);
+            throw new Error(`サーバーエラー: ${response.status} ${JSON.stringify(errorResult)}`);
         }
         const result = await response.json();
         return result.text || "";
@@ -221,7 +186,7 @@ function downloadAudio() {
 function downloadText() {
     const text = transcriptionResultTextarea.value;
     if (!text) return;
-    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // 文字化け対策
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
     const blob = new Blob([bom, text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -229,7 +194,7 @@ function downloadText() {
     a.href = url;
     a.download = `transcription-${new Date().toISOString()}.txt`;
     document.body.appendChild(a);
-    a.click();
+a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
 }
@@ -237,7 +202,7 @@ function downloadText() {
 function downloadSummary() {
     const text = summaryResultTextarea.value;
     if (!text) return;
-    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // 文字化け対策
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
     const blob = new Blob([bom, text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

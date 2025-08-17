@@ -39,19 +39,17 @@ async function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    resetUI(); // UIをリセット
+    resetUI();
     statusP.innerText = "ファイルを読み込みました。文字起こしを開始します...";
-
-    // 録音データとしてファイルを設定し、ダウンロード可能にする
+    
     finalAudioBlob = file;
     downloadAudioButton.classList.remove('hidden');
 
-    // 文字起こしプロセスを開始
+    // ★ transcribeChunkに直接ファイルを渡す
     const transcribedText = await transcribeChunk(file);
     await processTranscriptionResult(transcribedText);
 
-    // inputの値をリセットして同じファイルを再度選択できるようにする
-    event.target.value = '';
+    event.target.value = ''; 
 }
 
 async function startRecording() {

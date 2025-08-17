@@ -19,14 +19,17 @@ exports.handler = async (event) => {
 
         // ▼▼▼ ここからが重要な修正 ▼▼▼
 
+        
         // ブラウザから送られてきたContent-Typeヘッダーを取得する
         const contentType = event.headers['content-type'];
         if (!contentType) {
             throw new Error("Content-Type header is missing from the request.");
         }
 
+        // 受け取ったリクエストボディをBufferに変換
         const audioBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'binary');
-        
+
+        // Hugging Face APIへのリクエスト
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -36,7 +39,6 @@ exports.handler = async (event) => {
             },
             body: audioBuffer,
         });
-
         // ▲▲▲ ここまでが重要な修正 ▲▲▲
 
         if (!response.ok) {

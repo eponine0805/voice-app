@@ -4,8 +4,6 @@ const statusP = document.getElementById('status');
 const transcriptionResultTextarea = document.getElementById('transcriptionResult');
 const summaryResultTextarea = document.getElementById('summaryResult'); 
 const summarizeButton = document.getElementById('summarizeButton');
-
-// ダウンロードボタンを取得
 const downloadAudioButton = document.getElementById('downloadAudioButton');
 const downloadTextButton = document.getElementById('downloadTextButton');
 const downloadSummaryButton = document.getElementById('downloadSummaryButton');
@@ -14,53 +12,40 @@ const downloadSummaryButton = document.getElementById('downloadSummaryButton');
 let mediaRecorder;
 let isRecording = false;
 let audioChunks = [];
-let finalAudioBlob = null; // 録音完了後の音声データを保存する変数
+let finalAudioBlob = null;
 let fullTranscription = "";
-
-// Web Audio API関連の変数
 let audioContext;
 let microphoneStream;
-let scriptProcessor;
 
-// --- メインのイベントリスナー ---
-
-// 録音ボタンのクリック処理
-recordButton.addEventListener('click', async () => {
+// --- イベントリスナー ---
+recordButton.addEventListener('click', () => {
     if (!isRecording) {
-        await startRecording();
+        startRecording();
     } else {
         stopRecording();
     }
 });
-
-// 議事録作成ボタンのクリック処理
 summarizeButton.addEventListener('click', createSummary);
-
-// ダウンロードボタンのクリック処理
 downloadAudioButton.addEventListener('click', downloadAudio);
 downloadTextButton.addEventListener('click', downloadText);
 downloadSummaryButton.addEventListener('click', downloadSummary);
 
-
 // --- 機能ごとの関数 ---
-
-// 録音開始の処理
 async function startRecording() {
     try {
-        // UIと変数を初期状態にリセット
         resetUI();
-        
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        microphoneStream = audioContext.createMediaStreamSource(stream);
         
-        const bufferSize = 4096;
-        scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-        scriptProcessor.onaudioprocess = (event) => {}; // ストリームを渡すためだけ
-
+        // AudioWorkletをロードする
+        await audioContext.audioWorklet.addModule('worklet-processor.js');
+        
+        microphoneStream = audioContext.createMediaStreamSource(stream);
+        const workletNode = new AudioWorkletNode(audioContext, 'audio-processor');
         const mediaStreamDestination = audioContext.createMediaStreamDestination();
-        microphoneStream.connect(scriptProcessor);
-        scriptProcessor.connect(mediaStreamDestination);
+
+        microphoneStream.connect(workletNode);
+        workletNode.connect(mediaStreamDestination);
         
         mediaRecorder = new MediaRecorder(mediaStreamDestination.stream);
         
@@ -68,7 +53,6 @@ async function startRecording() {
         recordButton.innerText = "録音停止";
         recordButton.classList.add("recording");
         statusP.innerText = "録音中...";
-
         mediaRecorder.start();
 
         mediaRecorder.ondataavailable = (event) => {
@@ -80,8 +64,6 @@ async function startRecording() {
         mediaRecorder.onstop = async () => {
             statusP.innerText = "録音が完了しました。";
             finalAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-
-            // ★録音停止後、すぐに音声ダウンロードボタンを表示
             downloadAudioButton.classList.remove('hidden');
 
             statusP.innerText += " 文字起こしを開始します...";
@@ -91,39 +73,30 @@ async function startRecording() {
                 fullTranscription = transcribedText;
                 transcriptionResultTextarea.value = fullTranscription;
                 statusP.innerText = "文字起こしが完了しました。";
-
-                // ★文字起こし成功後、テキストダウンロードと議事録作成ボタンを表示
                 downloadTextButton.classList.remove('hidden');
                 summarizeButton.classList.remove('hidden');
             } else {
                 statusP.innerText = "文字起こしに失敗しました。";
             }
         };
-
     } catch (error) {
         console.error("録音開始エラー:", error);
         alert("マイクへのアクセスまたは音声処理の初期化に失敗しました。");
-        resetUI(); // エラー時もUIをリセット
+        resetUI();
     }
 }
 
-// 録音停止の処理
 function stopRecording() {
     if (mediaRecorder && isRecording) {
-        mediaRecorder.stop(); // これで onstop イベントが発火する
+        mediaRecorder.stop();
         isRecording = false;
         recordButton.innerText = "録音開始";
         recordButton.classList.remove("recording");
-
-        // Web Audio APIのリソースを解放
         microphoneStream.mediaStream.getTracks().forEach(track => track.stop());
-        microphoneStream.disconnect();
-        scriptProcessor.disconnect();
         audioContext.close();
     }
 }
 
-// 文字起こし処理（サーバー通信）
 async function transcribeChunk(audioBlob) {
     try {
         const response = await fetch('/.netlify/functions/transcribe', {
@@ -142,11 +115,9 @@ async function transcribeChunk(audioBlob) {
     }
 }
 
-// 議事録作成処理（サーバー通信）
 async function createSummary() {
     statusP.innerText = "議事録を作成中...";
     summarizeButton.disabled = true;
-
     try {
         const response = await fetch('/.netlify/functions/summarize', {
             method: 'POST',
@@ -156,14 +127,10 @@ async function createSummary() {
             console.error("サーバーからのエラー詳細:", await response.json());
             throw new Error('サーバーエラー');
         }
-        
         const result = await response.json();
         summaryResultTextarea.value = result.summary;
         statusP.innerText = "議事録が完成しました。";
-
-        // ★議事録作成成功後、議事録ダウンロードボタンを表示
         downloadSummaryButton.classList.remove('hidden');
-
     } catch (error) {
         console.error("議事録作成エラー:", error);
         statusP.innerText = "議事録の作成に失敗しました。";
@@ -172,7 +139,6 @@ async function createSummary() {
     }
 }
 
-// UIリセット関数
 function resetUI() {
     audioChunks = [];
     finalAudioBlob = null;
@@ -182,15 +148,11 @@ function resetUI() {
     statusP.innerText = "待機中...";
     recordButton.innerText = "録音開始";
     recordButton.classList.remove("recording");
-
-    // 全てのボタンを初期状態に戻す
     summarizeButton.classList.add('hidden');
     downloadAudioButton.classList.add('hidden');
     downloadTextButton.classList.add('hidden');
     downloadSummaryButton.classList.add('hidden');
 }
-
-// --- ダウンロード関数 ---
 
 function downloadAudio() {
     if (!finalAudioBlob) return;
@@ -200,7 +162,7 @@ function downloadAudio() {
     a.href = url;
     a.download = `recording-${new Date().toISOString()}.webm`;
     document.body.appendChild(a);
-a.click();
+    a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
 }
